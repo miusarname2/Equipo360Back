@@ -1,0 +1,342 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  perfilId  Int
+  perfil    Perfil   @relation(fields: [perfilId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Perfil {
+  id          Int         @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  Usuarios    Usuario[]
+  perfilRol   PerfilRol[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Rol {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @unique
+  descripcion String?
+  perfilRol   PerfilRol[]
+  rolPermiso  RolPermiso[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permiso {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @unique
+  descripcion String?
+  ruta        String?
+  operacion   String?
+  rolPermiso  RolPermiso[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model PerfilRol {
+  perfilId  Int
+  perfil    Perfil   @relation(fields: [perfilId], references: [id])
+  rolId     Int
+  rol       Rol      @relation(fields: [rolId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([perfilId, rolId])
+}
+
+model RolPermiso {
+  rolId     Int
+  rol       Rol      @relation(fields: [rolId], references: [id])
+  permisoId Int
+  permiso   Permiso  @relation(fields: [permisoId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([rolId, permisoId])
+}
+
+model TipoDocumento {
+  id          Int        @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  empleados   Empleado[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model TipoContrato {
+  id          Int        @id @default(autoincrement())
+  nombre      String?
+  descripcion String?
+  contratos   Contrato[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Contrato {
+  id             Int          @id @default(autoincrement())
+  tipoContratoId Int
+  fechaInicio    DateTime     @db.Date
+  fechaFin       DateTime?    @db.Date
+  tipoContrato   TipoContrato @relation(fields: [tipoContratoId], references: [id])
+  empleado       Empleado?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Empleado {
+  id              Int       @id @default(autoincrement())
+  nombre          String
+  apellido        String
+  email           String    @unique
+  telefono        String?
+  direccion       String?
+  tipoDocumentoId Int
+  documento       String    @unique
+  fechaNacimiento DateTime?
+  contratoId      Int?      @unique
+
+  tipoDocumento   TipoDocumento     @relation(fields: [tipoDocumentoId], references: [id])
+  contrato        Contrato?         @relation(fields: [contratoId], references: [id])
+  salarios        Salario[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  EmpleadoHorario EmpleadoHorario[]
+  Asistencia      Asistencia[]
+
+  PermisoEmpleado         PermisoEmpleado[]
+  AutorizacionHorasExtras AutorizacionHorasExtras[]
+  NominaEmpleado          NominaEmpleado[]
+  Tienda                  Tienda?                   @relation(fields: [tiendaId], references: [id])
+  tiendaId                Int?
+  Venta                   Venta[]
+}
+
+model Salario {
+  id          Int       @id @default(autoincrement())
+  empleadoId  Int       @unique
+  monto       Float
+  fechaInicio DateTime  @db.Date
+  fechaFin    DateTime? @db.Date
+  empleado    Empleado  @relation(fields: [empleadoId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Horario {
+  id              Int               @id @default(autoincrement())
+  nombre          String
+  horaEntrada     DateTime          @db.Time
+  horaInicioDesc  DateTime?         @db.Time
+  horaFinDesc     DateTime?         @db.Time
+  horaSalida      DateTime          @db.Time
+  horarioDia      HorarioDia[]
+  empleadoHorario EmpleadoHorario[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  TiendaHorario   TiendaHorario[]
+}
+
+model HorarioDia {
+  horarioId Int
+  diaSemana Int
+  horario   Horario  @relation(fields: [horarioId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([horarioId, diaSemana])
+}
+
+model EmpleadoHorario {
+  empleadoId      Int
+  horarioId       Int
+  fechaAsignacion DateTime  @db.Date
+  fechaRemocion   DateTime? @db.Date
+
+  empleado  Empleado @relation(fields: [empleadoId], references: [id])
+  horario   Horario  @relation(fields: [horarioId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([empleadoId, horarioId, fechaAsignacion])
+}
+
+model Asistencia {
+  id              Int       @id @default(autoincrement())
+  empleadoId      Int
+  fecha           DateTime  @db.Date
+  horaEntrada     DateTime? @db.Time
+  horaSalida      DateTime? @db.Time
+  minutosDescanso Int?      @default(0)
+  empleado        Empleado  @relation(fields: [empleadoId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([empleadoId, fecha])
+}
+
+model TipoPermiso {
+  id              Int               @id @default(autoincrement())
+  nombre          String
+  descripcion     String?
+  permisoEmpleado PermisoEmpleado[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model PermisoEmpleado {
+  id               Int                @id @default(autoincrement())
+  empleadoId       Int
+  tipoPermisoId    Int
+  fechaInicio      DateTime           @db.Date
+  fechaFin         DateTime?          @db.Date
+  motivo           String?
+  empleado         Empleado           @relation(fields: [empleadoId], references: [id])
+  tipoPermiso      TipoPermiso        @relation(fields: [tipoPermisoId], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  PermisoDocumento PermisoDocumento[]
+
+  @@unique([empleadoId, fechaInicio, tipoPermisoId])
+}
+
+model PermisoDocumento {
+  permisoEmpleadoId Int
+  urlDocumento      String
+  permisoEmpleado   PermisoEmpleado @relation(fields: [permisoEmpleadoId], references: [id])
+
+  @@id([permisoEmpleadoId, urlDocumento])
+}
+
+model AutorizacionHorasExtras {
+  id               Int      @id @default(autoincrement())
+  empleadoId       Int
+  fecha            DateTime @db.Date
+  horasAutorizadas Int
+  empleado         Empleado @relation(fields: [empleadoId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([empleadoId, fecha])
+}
+
+model NominaPeriodo {
+  id              Int       @id @default(autoincrement())
+  nombre          String
+  fechaInicio     DateTime  @db.Date
+  fechaFin        DateTime? @db.Date
+  fechaGeneracion DateTime  @db.Date
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  NominaEmpleado NominaEmpleado[]
+}
+
+model NominaEmpleado {
+  id              Int           @id @default(autoincrement())
+  empleadoId      Int
+  nominaPeriodoId Int
+  salarioBase     Float
+  horasExtras     Float?        @default(0)
+  deducciones     Float?        @default(0)
+  total           Float
+  empleado        Empleado      @relation(fields: [empleadoId], references: [id])
+  nominaPeriodo   NominaPeriodo @relation(fields: [nominaPeriodoId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([empleadoId, nominaPeriodoId])
+}
+
+model Departamento {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @unique
+  descripcion String?
+  ciudades    Ciudad[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Ciudad {
+  id             Int          @id @default(autoincrement())
+  nombre         String
+  descripcion    String?
+  departamentoId Int
+  departamento   Departamento @relation(fields: [departamentoId], references: [id])
+  tiendas        Tienda[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([nombre, departamentoId])
+}
+
+model Tienda {
+  id            Int             @id @default(autoincrement())
+  codigoTienda  String          @unique
+  nombre        String
+  descripcion   String?
+  direccion     String?
+  ciudadId      Int
+  ciudad        Ciudad          @relation(fields: [ciudadId], references: [id])
+  empleados     Empleado[]
+  TiendaHorario TiendaHorario[]
+  Venta         Venta[]
+  Gasto         Gasto[]
+}
+
+model TiendaHorario {
+  tiendaId  Int
+  horarioId Int
+  tienda    Tienda  @relation(fields: [tiendaId], references: [id])
+  horario   Horario @relation(fields: [horarioId], references: [id])
+
+  @@id([tiendaId, horarioId])
+}
+
+model Venta {
+  id         Int      @id @default(autoincrement())
+  tiendaId   Int
+  empleadoId Int
+  fechaVenta DateTime @db.Date
+  cantidad   Float
+  total      Float
+  tienda     Tienda   @relation(fields: [tiendaId], references: [id])
+  empleado   Empleado @relation(fields: [empleadoId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Gasto {
+  id          Int      @id @default(autoincrement())
+  tiendaId    Int
+  empleadoId  Int
+  descripcion String
+  monto       Float
+  fecha       DateTime @db.Date
+  tienda      Tienda   @relation(fields: [tiendaId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
